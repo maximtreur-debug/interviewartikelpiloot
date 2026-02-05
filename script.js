@@ -1,48 +1,48 @@
-// ---------------- MISSIES ----------------
 const missies = [
-  "20 squats + 15 push-ups",
-  "30 jumping jacks + 20 sit-ups",
-  "Plank 1 minuut",
-  "15 burpees",
-  "Ren op de plek 2 minuten",
-  "20 lunges per been",
-  "Sprint 100 meter of 5 rondjes",
-  "High knees 1 minuut",
-  "10 burpees + 20 squats",
-  "Mini circuit: 15 jumping jacks, 10 push-ups, 10 squats"
+  "20 Jumping Jacks",
+  "1 minuut planken",
+  "15 Squats",
+  "10 Push-ups",
+  "30 sec sprinten",
+  "Dans 1 minuut 💃",
+  "20 Lunges",
+  "15 Burpees"
 ];
 
-// ---------------- ELEMENTEN ----------------
 const wheel = document.getElementById("wheel");
 const spinButton = document.getElementById("spinButton");
 const missieDiv = document.getElementById("missie");
 const timerDiv = document.getElementById("timer");
 const progressBar = document.getElementById("progressBar");
-const streakDiv = document.getElementById("streak");
-const canvas = document.getElementById("confetti");
-const ctx = canvas.getContext("2d");
+const streakSpan = document.getElementById("streak");
+const scoreSpan = document.getElementById("score");
+const levelSpan = document.getElementById("level");
 
-// ---------------- CANVAS ----------------
-function resizeCanvas() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener("resize", resizeCanvas);
-
-// ---------------- DATA ----------------
+let rotation = 0;
 const MAX = 5;
 const COOLDOWN = 12 * 60 * 60 * 1000;
-let rotation = 0;
 
 let data = JSON.parse(localStorage.getItem("miniMissies")) || {
   clicks: 0,
   lastReset: Date.now(),
   streak: 0,
+  score: 0,
   lastDay: new Date().toDateString()
 };
 
-// ---------------- DAG & STREAK ----------------
+function save() {
+  localStorage.setItem("miniMissies", JSON.stringify(data));
+  updateUI();
+}
+
+function updateUI() {
+  progressBar.style.width = `${(data.clicks / MAX) * 100}%`;
+  streakSpan.textContent = data.streak;
+  scoreSpan.textContent = data.score;
+  levelSpan.textContent = Math.floor(data.score / 100) + 1;
+  spinButton.disabled = data.clicks >= MAX;
+}
+
 function checkDay() {
   const today = new Date().toDateString();
   if (data.lastDay !== today) {
@@ -54,63 +54,6 @@ function checkDay() {
   }
 }
 
-// ---------------- OPSLAAN ----------------
-function save() {
-  localStorage.setItem("miniMissies", JSON.stringify(data));
-  updateUI();
-}
-
-// ---------------- UI ----------------
-function updateUI() {
-  progressBar.style.width = `${(data.clicks / MAX) * 100}%`;
-  streakDiv.textContent = `🔥 Streak: ${data.streak}`;
-  spinButton.disabled = data.clicks >= MAX;
-}
-
-// ---------------- TIMER ----------------
-function startTimer() {
-  const interval = setInterval(() => {
-    const left = data.lastReset + COOLDOWN - Date.now();
-    if (left <= 0) {
-      clearInterval(interval);
-      data.clicks = 0;
-      save();
-      timerDiv.textContent = "";
-      return;
-    }
-    const h = Math.floor(left / 3600000);
-    const m = Math.floor((left % 3600000) / 60000);
-    const s = Math.floor((left % 60000) / 1000);
-    timerDiv.textContent = `Nieuw rad over ${h}u ${m}m ${s}s`;
-  }, 1000);
-}
-
-// ---------------- CONFETTI ----------------
-const particles = [];
-for (let i = 0; i < 150; i++) {
-  particles.push({
-    x: Math.random() * canvas.width,
-    y: Math.random() * canvas.height,
-    r: Math.random() * 6 + 2,
-    c: `hsl(${Math.random() * 360}, 70%, 50%)`
-  });
-}
-
-function confetti() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  particles.forEach(p => {
-    ctx.fillStyle = p.c;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
-    p.y += 3;
-    if (p.y > canvas.height) p.y = -10;
-  });
-  requestAnimationFrame(confetti);
-}
-confetti();
-
-// ---------------- RAD ----------------
 spinButton.addEventListener("click", () => {
   checkDay();
   if (data.clicks >= MAX) return;
@@ -121,13 +64,11 @@ spinButton.addEventListener("click", () => {
   setTimeout(() => {
     missieDiv.textContent = missies[Math.floor(Math.random() * missies.length)];
     data.clicks++;
+    data.score += 20;
     data.lastReset = Date.now();
     save();
-    if (data.clicks >= MAX) startTimer();
   }, 3000);
 });
 
-// ---------------- START ----------------
 checkDay();
 updateUI();
-if (data.clicks >= MAX) startTimer();
