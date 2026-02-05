@@ -22,6 +22,7 @@ const missieDiv = document.getElementById('missie');
 const knop = document.getElementById('nieuweMissie');
 const timerDiv = document.getElementById('timer');
 const progressBar = document.getElementById('progressBar');
+const container = document.querySelector('.container');
 const confettiCanvas = document.getElementById('confetti');
 const ctx = confettiCanvas.getContext('2d');
 
@@ -40,17 +41,53 @@ const cooldownHours = 12;
 
 let data = JSON.parse(localStorage.getItem(storageKey)) || {
   clicks: 0,
-  lastReset: Date.now()
+  lastReset: Date.now(),
+  streak: 0,
+  lastDay: new Date().toDateString()
 };
+
+// ----------------------- CHECK DAGELIJKS RESET + STREAK -----------------------
+function checkDayReset() {
+  const today = new Date().toDateString();
+  if (data.lastDay !== today) {
+    if (data.clicks >= 1) {
+      // Dag voltooid, streak verhogen
+      data.streak += 1;
+    } else {
+      // Dag gemist, streak reset
+      data.streak = 0;
+    }
+    data.clicks = 0;
+    data.lastDay = today;
+    data.lastReset = Date.now();
+    updateLocalStorage();
+    updateProgress();
+  }
+}
+
+// ----------------------- UPDATE LOCAL STORAGE -----------------------
+function updateLocalStorage() {
+  localStorage.setItem(storageKey, JSON.stringify(data));
+}
 
 // ----------------------- PROGRESS BAR -----------------------
 function updateProgress() {
   const percent = (data.clicks / maxClicks) * 100;
   progressBar.style.width = percent + '%';
+  // Voeg streak display toe
+  let streakDiv = document.getElementById('streak');
+  if(!streakDiv){
+    streakDiv = document.createElement('div');
+    streakDiv.id = 'streak';
+    streakDiv.style.fontSize = '18px';
+    streakDiv.style.marginBottom = '15px';
+    container.insertBefore(streakDiv, container.querySelector('.progress-container'));
+  }
+  streakDiv.textContent = `🔥 Streak: ${data.streak} dag(en) achter elkaar! 🔥`;
 }
 updateProgress();
 
-// ----------------------- RESET LOGICA -----------------------
+// ----------------------- CHECK RESET VAN COOLDOWN -----------------------
 function checkReset() {
   const now = Date.now();
   if (data.clicks >= maxClicks && now - data.lastReset >= cooldownHours * 60 * 60 * 1000) {
@@ -63,11 +100,7 @@ function checkReset() {
   }
 }
 checkReset();
-
-// ----------------------- LOCAL STORAGE UPDATE -----------------------
-function updateLocalStorage() {
-  localStorage.setItem(storageKey, JSON.stringify(data));
-}
+checkDayReset();
 
 // ----------------------- TIMER -----------------------
 function startCooldown() {
@@ -81,6 +114,7 @@ function startCooldown() {
     if (diff <= 0) {
       clearInterval(interval);
       checkReset();
+      checkDayReset();
       timerDiv.textContent = "";
       return;
     }
@@ -136,12 +170,14 @@ drawConfetti();
 
 // ----------------------- NIEUWE MISSIE -----------------------
 knop.addEventListener('click', () => {
+  checkDayReset();
   checkReset();
   if (data.clicks < maxClicks) {
     const index = Math.floor(Math.random() * missies.length);
     missieDiv.textContent = missies[index];
     data.clicks += 1;
     data.lastReset = Date.now();
+    data.lastDay = new Date().toDateString();
     updateLocalStorage();
     updateProgress();
     triggerConfetti();
