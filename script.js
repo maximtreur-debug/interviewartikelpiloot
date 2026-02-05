@@ -1,201 +1,133 @@
-// ----------------------- MISSIES -----------------------
+// ---------------- MISSIES ----------------
 const missies = [
-  "Doe 20 squats + 10 push-ups!",
-  "Ren op de plek voor 2 minuten!",
-  "Doe een plank van 1 minuut!",
-  "Spring 50 keer op en neer!",
-  "Maak een mini-dansroutine van 30 seconden!",
-  "Doe 15 burpees!",
-  "Doe 20 lunges per been!",
-  "Sprint 100 meter of rond je kamer 5 keer!",
-  "Doe 25 jumping jacks + 15 sit-ups!",
-  "Ren op de plek voor 1 minuut, daarna 10 push-ups!",
-  "Doe 1 minuut high knees (heupen hoog!)",
-  "Plank met arm- en beenheffen voor 45 seconden!",
-  "10 burpees + 20 squats + 10 push-ups!",
-  "Maak een mini circuit: 15 jumping jacks, 10 lunges, 10 push-ups",
-  "Ren op de plek en tik je knieën 30 keer hoog op!"
+  "20 squats + 15 push-ups",
+  "30 jumping jacks + 20 sit-ups",
+  "Plank 1 minuut",
+  "15 burpees",
+  "Ren op de plek 2 minuten",
+  "20 lunges per been",
+  "Sprint 100 meter of 5 rondjes",
+  "High knees 1 minuut",
+  "10 burpees + 20 squats",
+  "Mini circuit: 15 jumping jacks, 10 push-ups, 10 squats"
 ];
 
-// ----------------------- ELEMENTEN -----------------------
-const missieDiv = document.getElementById('missie');
-const knop = document.getElementById('nieuweMissie');
-const timerDiv = document.getElementById('timer');
-const progressBar = document.getElementById('progressBar');
-const container = document.querySelector('.container');
-const confettiCanvas = document.getElementById('confetti');
-const ctx = confettiCanvas.getContext('2d');
+// ---------------- ELEMENTEN ----------------
+const wheel = document.getElementById("wheel");
+const spinButton = document.getElementById("spinButton");
+const missieDiv = document.getElementById("missie");
+const timerDiv = document.getElementById("timer");
+const progressBar = document.getElementById("progressBar");
+const streakDiv = document.getElementById("streak");
+const canvas = document.getElementById("confetti");
+const ctx = canvas.getContext("2d");
 
-// ----------------------- RESPONSIVE CANVAS -----------------------
+// ---------------- CANVAS ----------------
 function resizeCanvas() {
-  confettiCanvas.width = window.innerWidth;
-  confettiCanvas.height = window.innerHeight;
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
 }
-window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
-// ----------------------- LOCAL STORAGE -----------------------
-const storageKey = 'miniMissies';
-const maxClicks = 5;
-const cooldownHours = 12;
+// ---------------- DATA ----------------
+const MAX = 5;
+const COOLDOWN = 12 * 60 * 60 * 1000;
+let rotation = 0;
 
-let data = JSON.parse(localStorage.getItem(storageKey)) || {
+let data = JSON.parse(localStorage.getItem("miniMissies")) || {
   clicks: 0,
   lastReset: Date.now(),
   streak: 0,
   lastDay: new Date().toDateString()
 };
 
-// ----------------------- CHECK DAGELIJKS RESET + STREAK -----------------------
-function checkDayReset() {
+// ---------------- DAG & STREAK ----------------
+function checkDay() {
   const today = new Date().toDateString();
   if (data.lastDay !== today) {
-    if (data.clicks >= 1) {
-      // Dag voltooid, streak verhogen
-      data.streak += 1;
-    } else {
-      // Dag gemist, streak reset
-      data.streak = 0;
-    }
+    data.streak = data.clicks > 0 ? data.streak + 1 : 0;
     data.clicks = 0;
     data.lastDay = today;
     data.lastReset = Date.now();
-    updateLocalStorage();
-    updateProgress();
+    save();
   }
 }
 
-// ----------------------- UPDATE LOCAL STORAGE -----------------------
-function updateLocalStorage() {
-  localStorage.setItem(storageKey, JSON.stringify(data));
+// ---------------- OPSLAAN ----------------
+function save() {
+  localStorage.setItem("miniMissies", JSON.stringify(data));
+  updateUI();
 }
 
-// ----------------------- PROGRESS BAR -----------------------
-function updateProgress() {
-  const percent = (data.clicks / maxClicks) * 100;
-  progressBar.style.width = percent + '%';
-  // Voeg streak display toe
-  let streakDiv = document.getElementById('streak');
-  if(!streakDiv){
-    streakDiv = document.createElement('div');
-    streakDiv.id = 'streak';
-    streakDiv.style.fontSize = '18px';
-    streakDiv.style.marginBottom = '15px';
-    container.insertBefore(streakDiv, container.querySelector('.progress-container'));
-  }
-  streakDiv.textContent = `🔥 Streak: ${data.streak} dag(en) achter elkaar! 🔥`;
+// ---------------- UI ----------------
+function updateUI() {
+  progressBar.style.width = `${(data.clicks / MAX) * 100}%`;
+  streakDiv.textContent = `🔥 Streak: ${data.streak}`;
+  spinButton.disabled = data.clicks >= MAX;
 }
-updateProgress();
 
-// ----------------------- CHECK RESET VAN COOLDOWN -----------------------
-function checkReset() {
-  const now = Date.now();
-  if (data.clicks >= maxClicks && now - data.lastReset >= cooldownHours * 60 * 60 * 1000) {
-    data.clicks = 0;
-    data.lastReset = now;
-    updateLocalStorage();
-    updateProgress();
-    knop.disabled = false;
-    missieDiv.textContent = "Klik op de knop voor je missie!";
-  }
-}
-checkReset();
-checkDayReset();
-
-// ----------------------- TIMER -----------------------
-function startCooldown() {
-  knop.disabled = true;
-  const endTime = data.lastReset + cooldownHours * 60 * 60 * 1000;
-
+// ---------------- TIMER ----------------
+function startTimer() {
   const interval = setInterval(() => {
-    const now = Date.now();
-    let diff = endTime - now;
-
-    if (diff <= 0) {
+    const left = data.lastReset + COOLDOWN - Date.now();
+    if (left <= 0) {
       clearInterval(interval);
-      checkReset();
-      checkDayReset();
+      data.clicks = 0;
+      save();
       timerDiv.textContent = "";
       return;
     }
-
-    const hours = Math.floor(diff / (1000*60*60));
-    const minutes = Math.floor((diff % (1000*60*60)) / (1000*60));
-    const seconds = Math.floor((diff % (1000*60)) / 1000);
-
-    timerDiv.textContent = `Nieuwe missie beschikbaar over ${hours}h ${minutes}m ${seconds}s`;
+    const h = Math.floor(left / 3600000);
+    const m = Math.floor((left % 3600000) / 60000);
+    const s = Math.floor((left % 60000) / 1000);
+    timerDiv.textContent = `Nieuw rad over ${h}u ${m}m ${s}s`;
   }, 1000);
 }
 
-// ----------------------- CONFETTI -----------------------
-const confettiParticles = [];
-function createConfetti() {
-  for(let i=0;i<150;i++){
-    confettiParticles.push({
-      x: Math.random()*confettiCanvas.width,
-      y: Math.random()*confettiCanvas.height- confettiCanvas.height,
-      r: Math.random()*6+2,
-      d: Math.random()*150+50,
-      color: `hsl(${Math.random()*360}, 70%, 50%)`,
-      tilt: Math.random()*10-10
-    });
-  }
+// ---------------- CONFETTI ----------------
+const particles = [];
+for (let i = 0; i < 150; i++) {
+  particles.push({
+    x: Math.random() * canvas.width,
+    y: Math.random() * canvas.height,
+    r: Math.random() * 6 + 2,
+    c: `hsl(${Math.random() * 360}, 70%, 50%)`
+  });
 }
-createConfetti();
 
-function drawConfetti(){
-  ctx.clearRect(0,0,confettiCanvas.width, confettiCanvas.height);
-  confettiParticles.forEach(p=>{
+function confetti() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  particles.forEach(p => {
+    ctx.fillStyle = p.c;
     ctx.beginPath();
-    ctx.lineWidth = p.r;
-    ctx.strokeStyle = p.color;
-    ctx.moveTo(p.x + p.tilt, p.y);
-    ctx.lineTo(p.x + p.tilt + p.r/2, p.y + p.r);
-    ctx.stroke();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    p.y += 3;
+    if (p.y > canvas.height) p.y = -10;
   });
-  updateConfetti();
-  requestAnimationFrame(drawConfetti);
+  requestAnimationFrame(confetti);
 }
+confetti();
 
-function updateConfetti(){
-  confettiParticles.forEach(p=>{
-    p.y += 2;
-    if(p.y>confettiCanvas.height){ 
-      p.y = -10;
-      p.x = Math.random()*confettiCanvas.width;
-    }
-  });
-}
-drawConfetti();
+// ---------------- RAD ----------------
+spinButton.addEventListener("click", () => {
+  checkDay();
+  if (data.clicks >= MAX) return;
 
-// ----------------------- NIEUWE MISSIE -----------------------
-knop.addEventListener('click', () => {
-  checkDayReset();
-  checkReset();
-  if (data.clicks < maxClicks) {
-    const index = Math.floor(Math.random() * missies.length);
-    missieDiv.textContent = missies[index];
-    data.clicks += 1;
+  rotation += Math.random() * 360 + 1440;
+  wheel.style.transform = `rotate(${rotation}deg)`;
+
+  setTimeout(() => {
+    missieDiv.textContent = missies[Math.floor(Math.random() * missies.length)];
+    data.clicks++;
     data.lastReset = Date.now();
-    data.lastDay = new Date().toDateString();
-    updateLocalStorage();
-    updateProgress();
-    triggerConfetti();
-
-    if (data.clicks >= maxClicks) {
-      startCooldown();
-    }
-  }
+    save();
+    if (data.clicks >= MAX) startTimer();
+  }, 3000);
 });
 
-// ----------------------- CONFETTI TRIGGER -----------------------
-function triggerConfetti(){
-  confettiParticles.forEach(p=>{
-    p.y -= Math.random()*20;
-  });
-}
-
-// ----------------------- START TIMER ALS MAX GEBRUIKT -----------------------
-if (data.clicks >= maxClicks) {
-  startCooldown();
-}
+// ---------------- START ----------------
+checkDay();
+updateUI();
+if (data.clicks >= MAX) startTimer();
